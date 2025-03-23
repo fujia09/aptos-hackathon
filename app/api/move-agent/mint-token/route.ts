@@ -9,7 +9,10 @@ import {
   } from "@aptos-labs/ts-sdk";
   import { AgentRuntime, LocalSigner } from "move-agent-kit";
   import { NextResponse } from "next/server";
-  
+  import { supabase } from "@/lib/supabase";
+
+
+
   // Initialize Aptos configuration DO NOT CHANGE TO TESTNET
   const aptosConfig = new AptosConfig({ network: Network.MAINNET });
   const aptos = new Aptos(aptosConfig);
@@ -24,11 +27,16 @@ import {
     try {
       const transaction = await agent.aptos.transaction.build.simple({
         sender: agent.account.getAddress(),
+        options: {
+            maxGasAmount: 90000,       // Try 60,000
+            gasUnitPrice: 100,         // Optional, tweak if network is congested
+          },
         data: {
           function: "0x67c8564aee3799e9ac669553fdef3a3828d4626f24786b6a5642152fa09469dd::launchpad::mint_to_address",
           functionArguments: [to.toString(), tokenAddress, amount],
         },
       });
+
   
       const committedTransactionHash = await agent.account.sendTransaction(transaction);
       const signedTransaction = await agent.aptos.waitForTransaction({
@@ -49,31 +57,56 @@ import {
   
   export async function POST(request: Request) {
     try {
-      const body = await request.json();
-      console.log("API received mint request body:", body);
-      let { tokenAddress, recipientAddress, amount } = body;
+        const appSecret = request.headers.get("x-app-secret");
+        if (appSecret !== process.env.NEXT_PUBLIC_INTERNAL_API_SECRET) {
+        return NextResponse.json(
+            { error: "Unauthorized - Invalid secret" },
+            { status: 401 }
+        );
+        }
 
-      if (!recipientAddress) {
-        recipientAddress = process.env.APTOS_ADDRESS
-      }
-      
-      console.log("Parsed mint values:", {
+        const body = await request.json();
+        console.log("API received mint request body:", body);
+        let { modelID, recipientAddress, amount } = body;
+
+        // Validate inputs
+        if (!modelID || !amount) {
+            return NextResponse.json(
+            { error: "Model ID and Mint Amount are needed" },
+            { status: 400 }
+            );
+        }
+
+        const {data: model, error} = await supabase
+            .from("models")
+            .select("*")
+            .eq("id", modelID)
+            .maybeSingle()
+        
+        if (error || !model) {
+            return NextResponse.json(
+                { error: `Model not found ${error?.message}` },
+                { status: 404 }
+            );
+        }
+
+        if (!recipientAddress) {
+            recipientAddress = model.model_wallet_public_address
+        }
+
+        const tokenAddress = model.token_address
+        
+        console.log("Parsed mint values:", {
         tokenAddress,
         recipientAddress,
         amount
-      });
-  
-      // Validate inputs
-      if (!tokenAddress || !amount) {
-        return NextResponse.json(
-          { error: "Token address, recipient address, and amount are required" },
-          { status: 400 }
-        );
-      }
+        });
+
+
     
   
       // Get private key from environment
-      const privateKeyStr = process.env.APTOS_PRIVATE_KEY;
+      const privateKeyStr = model.model_wallet_private_address
       if (!privateKeyStr) {
         throw new Error("Missing APTOS_PRIVATE_KEY environment variable");
       }
@@ -95,7 +128,7 @@ import {
         aptosAgent,
         recipientAccountAddress,
         tokenAddress,
-        amount
+        Number(amount) * 1e6
       );
   
       console.log("Token mint result:", { mintHash });

@@ -24,9 +24,13 @@ async function createToken(
   iconURI: string,
   projectURI: string,
 ): Promise<{ hash: string; token: any }> {
-  try {
+  
     const transaction = await agent.aptos.transaction.build.simple({
       sender: agent.account.getAddress(),
+      options: {
+        maxGasAmount: 90000,       // Try 60,000
+        gasUnitPrice: 100,         // Optional, tweak if network is congested
+      },
       data: {
         function: "0x67c8564aee3799e9ac669553fdef3a3828d4626f24786b6a5642152fa09469dd::launchpad::create_fa_simple",
         functionArguments: [name, symbol, iconURI, projectURI],
@@ -34,37 +38,48 @@ async function createToken(
     });
 
     const committedTransactionHash = await agent.account.sendTransaction(transaction);
+    console.log("Submitted Tx Hash:", committedTransactionHash); // <-- PRINT HASH
+
     const signedTransaction = await agent.aptos.waitForTransaction({
       transactionHash: committedTransactionHash,
     });
 
     if (!signedTransaction.success) {
-      console.error(signedTransaction, "Token creation failed");
-      throw new Error("Token creation failed");
+      console.error("❌ Transaction Failed:", signedTransaction);
+      throw new Error(`Token creation failed. Tx Hash: ${committedTransactionHash}`);
     }
 
     const tokenData = (signedTransaction as any).events?.[0]?.data?.fa_obj?.inner;
     if (!tokenData) {
-      throw new Error("Token creation succeeded but no token data was returned");
+      throw new Error(`Token created but no token data returned. Tx Hash: ${committedTransactionHash}`);
     }
+
+
 
     return {
       hash: signedTransaction.hash,
       token: tokenData,
     };
-  } catch (error: any) {
-    console.error("Detailed error:", error);
-    throw new Error(`Token creation failed: ${error.message}`);
-  }
-}
 
+    
+  
+}
 
 
 export async function POST(request: Request) {
   try {
+    // Validate secret header
+    const appSecret = request.headers.get("x-app-secret");
+    if (appSecret !== process.env.NEXT_PUBLIC_INTERNAL_API_SECRET) {
+      return NextResponse.json(
+        { error: "Unauthorized - Invalid secret" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     console.log("API received request body:", body);
-    const { tokenName, tokenSymbol, iconURI, projectURI } = body;
+    let { privateKey, tokenName, tokenSymbol, iconURI, projectURI } = body;
     
     console.log("Parsed values:", {
       tokenName,
@@ -82,14 +97,14 @@ export async function POST(request: Request) {
     }
 
     // Get private key from environment
-    const privateKeyStr = process.env.APTOS_PRIVATE_KEY;
-    if (!privateKeyStr) {
-      throw new Error("Missing APTOS_PRIVATE_KEY environment variable");
-    }
+    // const privateKeyStr = process.env.APTOS_PRIVATE_KEY;
+    // if (!privateKeyStr) {
+    //   throw new Error("Missing APTOS_PRIVATE_KEY environment variable");
+    // }
 
     // DO NOT CHANGE THIS ACCOUNT PRIVATE KEY LOGIC
     const aptos = new Aptos(aptosConfig);
-    const privateKey = new Ed25519PrivateKey(privateKeyStr);
+    privateKey = new Ed25519PrivateKey(privateKey);
     const account = Account.fromPrivateKey({ privateKey });
     const signer = new LocalSigner(account, Network.MAINNET);
     const aptosAgent = new AgentRuntime(signer, aptos);

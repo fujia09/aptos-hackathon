@@ -10,6 +10,7 @@ export interface Model {
   token_name?: string;
   token_symbol?: string;
   token_address?: string;
-  tokens_per_prompt?: number;
   apt_per_token?: number;
+  model_wallet_public_address?: string;
+  model_wallet_private_address?: string;
 } 
