@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,28 +18,93 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Coins } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login process
-    setTimeout(() => {
+    
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // Make sure we have a session
+      if (data?.session) {
+        toast.success('Logged in successfully');
+        router.refresh();  // optional, not always needed
+        router.push("/dashboard");
+      } else {
+        throw new Error('No session established');
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
       setIsLoading(false);
-      window.location.href = "/dashboard";
-    }, 1500);
+    }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+   
+    console.log('Signup form submitted');
     setIsLoading(true);
-    // Simulate signup process
-    setTimeout(() => {
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const email = formData.get('signup-email') as string;
+    const password = formData.get('signup-password') as string;
+    const name = formData.get('name') as string;
+
+    console.log('Form data:', { email, name }); // Don't log password
+
+    try {
+      console.log('Calling Supabase signup...');
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      });
+
+
+      console.log('Supabase response:', { data: data});
+  
+
+      if (error) throw error;
+
+      // Make sure we have a session
+      if (data?.session) {
+        console.log('Session established, redirecting...');
+        toast.success('Account created successfully!');
+        router.refresh(); // Refresh to update auth state
+        router.push('/dashboard');
+      } else {
+        console.log('No session in response');
+        throw new Error('No session established');
+      }
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      toast.error(error.message);
+    } finally {
       setIsLoading(false);
-      window.location.href = "/dashboard";
-    }, 1500);
+    }
   };
 
   return (
@@ -71,6 +137,7 @@ export default function LoginPage() {
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="m@example.com"
                       required
@@ -86,7 +153,7 @@ export default function LoginPage() {
                         Forgot password?
                       </Link>
                     </div>
-                    <Input id="password" type="password" required />
+                    <Input id="password" name="password" type="password" required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Logging in..." : "Login"}
@@ -97,12 +164,13 @@ export default function LoginPage() {
                 <form onSubmit={handleSignup} className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
-                    <Input id="name" placeholder="John Doe" required />
+                    <Input id="name" name="name" placeholder="John Doe" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <Input
                       id="signup-email"
+                      name="signup-email"
                       type="email"
                       placeholder="m@example.com"
                       required
@@ -110,9 +178,14 @@ export default function LoginPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input id="signup-password" type="password" required />
+                    <Input id="signup-password" name="signup-password" type="password" required />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading}
+                    onClick={() => console.log('Button clicked')}
+                  >
                     {isLoading ? "Creating account..." : "Create account"}
                   </Button>
                 </form>
@@ -131,8 +204,12 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline">Google</Button>
-              <Button variant="outline">GitHub</Button>
+              <Button variant="outline" onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}>
+                Google
+              </Button>
+              <Button variant="outline" onClick={() => supabase.auth.signInWithOAuth({ provider: 'github' })}>
+                GitHub
+              </Button>
             </div>
           </CardFooter>
         </Card>
