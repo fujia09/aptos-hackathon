@@ -9,11 +9,11 @@ export async function POST() {
     const modelAccount = Account.generate();
 
     // Extract private key (hex) and address
-    // const privateKeyHex = modelAccount.privateKey.toString();
-    // const address = modelAccount.accountAddress.toString();
+    const privateKeyHex = modelAccount.privateKey.toString();
+    const address = modelAccount.accountAddress.toString();
 
-    const privateKeyHex = process.env.TEST_WALLET_PRIVATE
-    const address = process.env.TEST_WALLET_PUBLIC
+    // const privateKeyHex = process.env.TEST_WALLET_PRIVATE
+    // const address = process.env.TEST_WALLET_PUBLIC
 
     console.log(address, privateKeyHex)
 

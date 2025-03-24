@@ -26,6 +26,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +55,7 @@ import {
   Loader2,
   LogOut,
   Copy,
+  X,
 } from "lucide-react";
 import { TokenStats } from "@/components/token-stats";
 import { useRouter } from "next/navigation";
@@ -68,9 +81,25 @@ type CreateFormValues = {
   pricePerToken: string;
 };
 
+// Add Petra wallet type
+declare global {
+  interface Window {
+    aptos?: {
+      connect: () => Promise<{ address: string }>;
+      disconnect: () => Promise<void>;
+      account: () => Promise<{ address: string }>;
+    };
+  }
+}
+
 export default function Dashboard() {
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
+  const [burnAmount, setBurnAmount] = useState<string>("");
+  const [mintAmount, setMintAmount] = useState<string>("");
+  const [isBurning, setIsBurning] = useState<{ [key: string]: boolean }>({});
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   // Step-based creation
   // step 1: generate wallet
@@ -275,9 +304,6 @@ export default function Dashboard() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // e.g. convert to smaller units
-      const mintAmount = 1;
-
       const response = await fetch("/api/move-agent/mint-token", {
         method: "POST",
         headers: {
@@ -286,8 +312,8 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           modelID: model.id,
-          recipientAddresss: "", // Fill in if needed
-          amount: mintAmount,
+          recipientAddress: "", // Fill in if needed
+          amount: Number(mintAmount),
         }),
       });
 
@@ -297,13 +323,64 @@ export default function Dashboard() {
       }
 
       toast.success(
-        `Successfully minted 1 ${model.token_symbol} tokens!`
+        `Successfully minted ${mintAmount} ${model.token_symbol} tokens!`
       );
+      setMintAmount("");
+      
+      // Don't refresh models to update price when minting from dashboard
     } catch (error: any) {
       console.error("Error minting tokens:", error);
       toast.error(error.message || "Failed to mint tokens");
     } finally {
       setIsMinting((prev) => ({ ...prev, [model.id]: false }));
+    }
+  };
+
+  const handleBurnToken = async (model: Model) => {
+    try {
+      if (!window.aptos) {
+        throw new Error("Petra wallet not installed");
+      }
+
+      if (!isWalletConnected) {
+        await connectPetra();
+      }
+
+      const account = await window.aptos.account();
+      const walletAddress = account.address;
+
+      setIsBurning((prev) => ({ ...prev, [model.id]: true }));
+
+      const response = await fetch("/api/move-agent/burn-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-app-secret": process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || "",
+        },
+        body: JSON.stringify({
+          modelID: model.id,
+          amount: Number(burnAmount),
+          userAddress: walletAddress,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to burn tokens");
+      }
+
+      toast.success(
+        `Successfully burned ${burnAmount} ${model.token_symbol} tokens!`
+      );
+      setBurnAmount("");
+      
+      // Refresh models to update UI with new price
+      await fetchModels();
+    } catch (error: any) {
+      console.error("Error burning tokens:", error);
+      toast.error(error.message || "Failed to burn tokens");
+    } finally {
+      setIsBurning((prev) => ({ ...prev, [model.id]: false }));
     }
   };
 
@@ -317,6 +394,24 @@ export default function Dashboard() {
     } catch (error: any) {
       console.error("Error logging out:", error);
       toast.error(error.message || "Failed to log out");
+    }
+  };
+
+  const connectPetra = async () => {
+    if (!window.aptos) {
+      toast.error("Petra wallet not installed");
+      return;
+    }
+
+    try {
+      const response = await window.aptos.connect();
+      const account = await window.aptos.account();
+      setWalletAddress(account.address);
+      setIsWalletConnected(true);
+      toast.success("Wallet connected");
+    } catch (err: any) {
+      console.error("Wallet connection error:", err);
+      toast.error(err.message || "Failed to connect wallet");
     }
   };
 
@@ -668,31 +763,123 @@ export default function Dashboard() {
                                 </div>
                               </DrawerContent>
                             </Drawer>
-                            <Button
-                              className="w-full mt-4"
-                              onClick={() => handleMintToken(model)}
-                              disabled={isMinting[model.id]}
-                            >
-                              {isMinting[model.id] ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Minting Tokens...
-                                </>
-                              ) : (
-                                <>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  className="w-full mt-4"
+                                >
+                                  Mint Tokens
                                   <Coins className="mr-2 h-4 w-4" />
-                                  Mint 1 {model.token_symbol}{" "}
-                                  to Self
-                                </>
-                              )}
-                            </Button>
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Mint Tokens</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Enter the amount of tokens you want to mint.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-4">
+                                  <div className="flex flex-col gap-2">
+                                    <Label htmlFor="mint-amount">Amount to Mint</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        id="mint-amount"
+                                        type="number"
+                                        min="1"
+                                        placeholder="Enter amount"
+                                        className="flex-1"
+                                        value={mintAmount}
+                                        onChange={(e) => setMintAmount(e.target.value)}
+                                      />
+                                      <span className="text-sm text-muted-foreground">
+                                        {model.token_symbol}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setMintAmount("")}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleMintToken(model)}
+                                    disabled={!mintAmount || Number(mintAmount) < 1 || isMinting[model.id]}
+                                  >
+                                    {isMinting[model.id] ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Minting...
+                                      </>
+                                    ) : (
+                                      "Mint Tokens"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="w-full mt-4"
+                                >
+                                  Burn Tokens
+                                  <X className="mr-2 h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Burn Tokens</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently burn your tokens
+                                    and remove them from circulation.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-4">
+                                  <div className="flex flex-col gap-2">
+                                    <Label htmlFor="burn-amount">Amount to Burn</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        id="burn-amount"
+                                        type="number"
+                                        min="1"
+                                        placeholder="Enter amount"
+                                        className="flex-1"
+                                        value={burnAmount}
+                                        onChange={(e) => setBurnAmount(e.target.value)}
+                                      />
+                                      <span className="text-sm text-muted-foreground">
+                                        {model.token_symbol}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setBurnAmount("")}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white"
+                                    onClick={() => handleBurnToken(model)}
+                                    disabled={!burnAmount || Number(burnAmount) < 1}
+                                  >
+                                    {isBurning[model.id] ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Burning...
+                                      </>
+                                    ) : (
+                                      "Burn Tokens"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
                     <Button
                       variant="outline"
-                      className="h-[358.5px] border-dashed flex flex-col gap-2 items-center justify-center"
+                      className="h-[415px] border-dashed flex flex-col gap-2 items-center justify-center"
                       onClick={() => setOpen(true)}
                     >
                       <Plus className="h-8 w-8 text-muted-foreground" />

@@ -48,6 +48,19 @@ import {
   } from "@aptos-labs/ts-sdk";
 
 import { AptosClient } from "aptos";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+  } from "@/components/ui/alert-dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
 
 const aptosConfig = new AptosConfig({ network: Network.MAINNET });
@@ -56,6 +69,7 @@ const aptos = new Aptos(aptosConfig);
 export default function Browse() {
     const [models, setModels] = useState<Model[]>([])
     const [loading, setLoading] = useState(true)
+    const [mintAmount, setMintAmount] = useState<string>("");
     const [isMinting, setIsMinting] = useState<{ [key: string]: boolean }>({})
     const [walletAddress, setWalletAddress] = useState<string | null>(null)
     const [isWalletConnected, setIsWalletConnected] = useState(false)
@@ -133,8 +147,10 @@ export default function Browse() {
   
       const account = await window.aptos.account();
       const walletAddress = account.address;
+
+      const mint = mintAmount;
   
-      const priceOctas = Math.floor(Number(model.apt_per_token) * 1e8); // APT -> Octas
+      const priceOctas = Math.floor(Number(model.apt_per_token) * 1e8 * Number(mint)); // APT -> Octas
       const modelOwnerAddress = model.model_wallet_public_address;
   
       const txPayload = {
@@ -159,7 +175,7 @@ export default function Browse() {
       console.log("Transaction successful:", txn);
       setIsMinting((prev) => ({ ...prev, [model.id]: true }));
   
-      const mintAmount = 1;
+      
   
       const response = await fetch("/api/move-agent/mint-token", {
         method: "POST",
@@ -178,6 +194,7 @@ export default function Browse() {
       if (!response.ok) {
         throw new Error(result.error || "Failed to mint tokens");
       }
+      setMintAmount("");
   
       toast.success(`Successfully minted 1 ${model.token_symbol} token!`);
     } catch (error: any) {
@@ -320,23 +337,60 @@ export default function Browse() {
                           </div>
                         </DrawerContent>
                       </Drawer>
-                      <Button
-                        className="w-full mt-4"
-                        onClick={() => handleMintToken(model)}
-                        disabled={isMinting[model.id]}
-                      >
-                        {isMinting[model.id] ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Minting Tokens...
-                          </>
-                        ) : (
-                          <>
-                            <Coins className="mr-2 h-4 w-4" />
-                            Mint 1 {model.token_symbol} to Self
-                          </>
-                        )}
-                      </Button>
+                      <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  className="w-full mt-4"
+                                >
+                                  Mint Tokens
+                                  <Coins className="mr-2 h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Mint Tokens</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Enter the amount of tokens you want to mint.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-4">
+                                  <div className="flex flex-col gap-2">
+                                    <Label htmlFor="mint-amount">Amount to Mint</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        id="mint-amount"
+                                        type="number"
+                                        min="1"
+                                        placeholder="Enter amount"
+                                        className="flex-1"
+                                        value={mintAmount}
+                                        onChange={(e) => setMintAmount(e.target.value)}
+                                      />
+                                      <span className="text-sm text-muted-foreground">
+                                        {model.token_symbol}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setMintAmount("")}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleMintToken(model)}
+                                    disabled={!mintAmount || Number(mintAmount) < 1 || isMinting[model.id]}
+                                  >
+                                    {isMinting[model.id] ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Minting...
+                                      </>
+                                    ) : (
+                                      "Mint Tokens"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                        
                     </div>
                   </CardContent>
                 </Card>
