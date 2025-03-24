@@ -628,9 +628,9 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$4,231.89</div>
+                <div className="text-2xl font-bold">+$10</div>
                 <p className="text-xs text-muted-foreground">
-                  +20.1% from last month
+                  +5% from yesterday
                 </p>
               </CardContent>
             </Card>
@@ -641,22 +641,22 @@ export default function Dashboard() {
                 <Cpu className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+12,234</div>
+                <div className="text-2xl font-bold">+20</div>
                 <p className="text-xs text-muted-foreground">
-                  +19% from last month
+                  +10% from yesterday
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Token Value</CardTitle>
+                <CardTitle className="text-sm font-medium">Accumulated Value</CardTitle>
                 <Coins className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$0.0042</div>
+                <div className="text-2xl font-bold">+$0.000042</div>
                 <p className="text-xs text-muted-foreground">
-                  +7% from last week
+                  +2% from yesterday
                 </p>
               </CardContent>
             </Card>
@@ -667,8 +667,8 @@ export default function Dashboard() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+573</div>
-                <p className="text-xs text-muted-foreground">+201 since last month</p>
+                <div className="text-2xl font-bold">+4</div>
+                <p className="text-xs text-muted-foreground">+1 from yesterday</p>
               </CardContent>
             </Card>
           </div>
@@ -676,7 +676,6 @@ export default function Dashboard() {
           <Tabs defaultValue="models" className="space-y-4">
             <TabsList>
               <TabsTrigger value="models">AI Models</TabsTrigger>
-              <TabsTrigger value="tokens">Tokens</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
@@ -890,41 +889,7 @@ export default function Dashboard() {
               </div>
             </TabsContent>
 
-            <TabsContent value="tokens" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <TokenStats
-                  name="TXTS"
-                  fullName="Text Summarizer Token"
-                  price={0.0042}
-                  change={7.2}
-                  volume={12453}
-                  liquidity={45678}
-                />
-                <TokenStats
-                  name="IMGN"
-                  fullName="Image Generator Token"
-                  price={0.0078}
-                  change={-2.3}
-                  volume={8765}
-                  liquidity={32456}
-                />
-                <TokenStats
-                  name="CODE"
-                  fullName="Code Assistant Token"
-                  price={0.0035}
-                  change={12.5}
-                  volume={5432}
-                  liquidity={21345}
-                />
-                <Button
-                  variant="outline"
-                  className="h-[220px] border-dashed flex flex-col gap-2 items-center justify-center"
-                >
-                  <Plus className="h-8 w-8 text-muted-foreground" />
-                  <span>Create New Token</span>
-                </Button>
-              </div>
-            </TabsContent>
+
 
             <TabsContent value="analytics" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">

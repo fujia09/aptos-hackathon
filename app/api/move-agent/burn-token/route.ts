@@ -183,11 +183,17 @@ export async function POST(request: Request) {
     const totalSupply = await getTotalSupply(aptosAgent, tokenAddress);
     const currentPrice = model.apt_per_token || 0;
     const burnAmount = Number(amount);
-    
-    // Calculate price impact based on supply BEFORE burning
-    // For example, burning 100 tokens when supply is 1000 = 10% price increase
-    const priceImpact = (burnAmount / totalSupply) * 100;
-    const newPrice = Math.abs(currentPrice * (1 + priceImpact / 100));
+
+    let newPrice = currentPrice;
+    let priceImpact = 0;
+    if (totalSupply > 0) {
+      // Calculate price impact based on supply BEFORE burning
+      // For example, burning 100 tokens when supply is 1000 = 10% price increase
+      priceImpact = (burnAmount / totalSupply) * 100;
+      newPrice = Math.abs(currentPrice * (1 + priceImpact / 100));
+    } else {
+      newPrice = currentPrice;
+    }
 
     // Update price in Supabase
     const { data, error: insertError } = await supabase

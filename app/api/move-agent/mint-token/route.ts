@@ -25,7 +25,7 @@ import {
       const transaction = await agent.aptos.transaction.build.simple({
         sender: agent.account.getAddress(),
         options: {
-            maxGasAmount: 120000,       // Try 60,000
+            maxGasAmount: 110000,       // Try 60,000
             gasUnitPrice: 100,         // Optional, tweak if network is congested
           },
         data: {
@@ -213,7 +213,7 @@ import {
       let priceImpact = 0;
 
       // Only update price if minting from browse page (when recipientAddress is provided)
-      if (recipientAddress) {
+      if (recipientAddress && totalSupply > 0) {
         // Calculate price impact based on supply BEFORE minting
         // For example, minting 100 tokens when supply is 1000 = 10% price decrease
         priceImpact = (mintAmount / (totalSupply - mintAmount)) * 100;

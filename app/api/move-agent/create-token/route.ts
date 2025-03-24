@@ -28,7 +28,7 @@ async function createToken(
     const transaction = await agent.aptos.transaction.build.simple({
       sender: agent.account.getAddress(),
       options: {
-        maxGasAmount: 120000,       // Try 60,000
+        maxGasAmount: 90000,       // Try 60,000
         gasUnitPrice: 100,         // Optional, tweak if network is congested
       },
       data: {
