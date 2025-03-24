@@ -55,6 +55,7 @@ import {
   Loader2,
   LogOut,
   Copy,
+  X,
 } from "lucide-react";
 import { TokenStats } from "@/components/token-stats";
 import { useRouter } from "next/navigation";
@@ -95,6 +96,7 @@ export default function Dashboard() {
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
   const [burnAmount, setBurnAmount] = useState<string>("");
+  const [mintAmount, setMintAmount] = useState<string>("");
   const [isBurning, setIsBurning] = useState<{ [key: string]: boolean }>({});
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -302,9 +304,6 @@ export default function Dashboard() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // e.g. convert to smaller units
-      const mintAmount = 1;
-
       const response = await fetch("/api/move-agent/mint-token", {
         method: "POST",
         headers: {
@@ -313,8 +312,8 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           modelID: model.id,
-          recipientAddresss: "", // Fill in if needed
-          amount: mintAmount,
+          recipientAddress: "", // Fill in if needed
+          amount: Number(mintAmount),
         }),
       });
 
@@ -324,8 +323,11 @@ export default function Dashboard() {
       }
 
       toast.success(
-        `Successfully minted 1 ${model.token_symbol} tokens!`
+        `Successfully minted ${mintAmount} ${model.token_symbol} tokens!`
       );
+      setMintAmount("");
+      
+      // Don't refresh models to update price when minting from dashboard
     } catch (error: any) {
       console.error("Error minting tokens:", error);
       toast.error(error.message || "Failed to mint tokens");
@@ -371,6 +373,9 @@ export default function Dashboard() {
         `Successfully burned ${burnAmount} ${model.token_symbol} tokens!`
       );
       setBurnAmount("");
+      
+      // Refresh models to update UI with new price
+      await fetchModels();
     } catch (error: any) {
       console.error("Error burning tokens:", error);
       toast.error(error.message || "Failed to burn tokens");
@@ -758,24 +763,59 @@ export default function Dashboard() {
                                 </div>
                               </DrawerContent>
                             </Drawer>
-                            <Button
-                              className="w-full mt-4"
-                              onClick={() => handleMintToken(model)}
-                              disabled={isMinting[model.id]}
-                            >
-                              {isMinting[model.id] ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Minting Tokens...
-                                </>
-                              ) : (
-                                <>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  className="w-full mt-4"
+                                >
+                                  Mint Tokens
                                   <Coins className="mr-2 h-4 w-4" />
-                                  Mint 1 {model.token_symbol}{" "}
-                                  to Self
-                                </>
-                              )}
-                            </Button>
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Mint Tokens</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Enter the amount of tokens you want to mint.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-4">
+                                  <div className="flex flex-col gap-2">
+                                    <Label htmlFor="mint-amount">Amount to Mint</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        id="mint-amount"
+                                        type="number"
+                                        min="1"
+                                        placeholder="Enter amount"
+                                        className="flex-1"
+                                        value={mintAmount}
+                                        onChange={(e) => setMintAmount(e.target.value)}
+                                      />
+                                      <span className="text-sm text-muted-foreground">
+                                        {model.token_symbol}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setMintAmount("")}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleMintToken(model)}
+                                    disabled={!mintAmount || Number(mintAmount) < 1 || isMinting[model.id]}
+                                  >
+                                    {isMinting[model.id] ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Minting...
+                                      </>
+                                    ) : (
+                                      "Mint Tokens"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -783,8 +823,8 @@ export default function Dashboard() {
                                   size="sm"
                                   className="w-full mt-4"
                                 >
-                                  <Coins className="mr-2 h-4 w-4" />
                                   Burn Tokens
+                                  <X className="mr-2 h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>

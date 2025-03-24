@@ -11,13 +11,10 @@ import {
   import { NextResponse } from "next/server";
   import { supabase } from "@/lib/supabase";
 
-
-
   // Initialize Aptos configuration DO NOT CHANGE TO TESTNET
   const aptosConfig = new AptosConfig({ network: Network.MAINNET });
   const aptos = new Aptos(aptosConfig);
-  
-  
+
   async function mintToken(
     agent: AgentRuntime,
     to: AccountAddress,
@@ -49,9 +46,84 @@ import {
       }
   
       return signedTransaction.hash;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Detailed mint error:", error);
-      throw new Error(`Token mint failed: ${error.message}`);
+      throw new Error(`Token mint failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+  
+  async function updateTokenPrice(modelID: string, newPrice: number): Promise<void> {
+    console.log(`Attempting to update price for model ${modelID} to ${newPrice}`);
+    
+    const { data, error } = await supabase
+      .from("models")
+      .update({ apt_per_token: newPrice })
+      .eq("id", modelID)
+      .select();
+
+    if (error) {
+      console.error("Error updating token price:", error);
+      throw new Error("Failed to update token price");
+    }
+
+    console.log("Price update result:", data);
+  }
+  
+  // GraphQL endpoint
+  const GRAPHQL_URL = "https://indexer.mainnet.aptoslabs.com/v1/graphql";
+
+  async function getTotalSupply(
+    agent: AgentRuntime,
+    tokenAddress: string
+  ): Promise<number> {
+    try {
+      const query = `
+        query GetFungibleAssetSupply($asset_type: String) {
+          current_fungible_asset_balances(
+            where: {asset_type: {_eq: $asset_type}}
+          ) {
+            amount
+          }
+        }
+      `;
+
+      const response = await fetch(GRAPHQL_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          variables: {
+            asset_type: tokenAddress
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`GraphQL request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("GraphQL API response:", data);
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      // Sum up all balances to get total supply
+      const totalSupply = data.data.current_fungible_asset_balances.reduce(
+        (sum: number, balance: { amount: string }) => sum + Number(balance.amount),
+        0
+      );
+
+      const supply = totalSupply / 1e6; // Convert from smaller units
+      console.log(`Total supply: ${supply} tokens`);
+      return supply;
+
+    } catch (error: unknown) {
+      console.error("Error getting total supply:", error);
+      throw new Error(`Failed to get total supply: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   
@@ -67,7 +139,8 @@ import {
 
         const body = await request.json();
         console.log("API received mint request body:", body);
-        let { modelID, recipientAddress, amount } = body;
+        const { modelID, amount } = body;
+        let recipientAddress = body.recipientAddress;
 
         // Validate inputs
         if (!modelID || !amount) {
@@ -131,19 +204,50 @@ import {
         Number(amount) * 1e6
       );
   
-      console.log("Token mint result:", { mintHash });
+      // Get total supply and calculate new price
+      const totalSupply = await getTotalSupply(aptosAgent, tokenAddress);
+      const currentPrice = model.apt_per_token || 0;
+      const mintAmount = Number(amount);
+      
+      let newPrice = currentPrice;
+      let priceImpact = 0;
+
+      // Only update price if minting from browse page (when recipientAddress is provided)
+      if (recipientAddress) {
+        // Calculate price impact based on supply BEFORE minting
+        // For example, minting 100 tokens when supply is 1000 = 10% price decrease
+        priceImpact = (mintAmount / (totalSupply - mintAmount)) * 100;
+        newPrice = currentPrice * (1 - priceImpact / 100);
+
+        // Update price in Supabase
+        await updateTokenPrice(modelID, newPrice);
+
+        console.log("Token mint result:", { 
+          mintHash,
+          oldPrice: currentPrice,
+          newPrice,
+          mintAmount,
+          totalSupply,
+          priceImpact
+        });
+      } else {
+        console.log("Minting from dashboard - price not updated");
+      }
   
       return NextResponse.json({
         message: "Token minted successfully!",
         mintTransactionHash: mintHash,
         tokenAddress,
         recipientAddress,
-        amount
+        amount,
+        newPrice,
+        totalSupply,
+        priceImpact
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Token mint error:", error);
       return NextResponse.json(
-        { error: error.message || "Token mint failed" },
+        { error: error instanceof Error ? error.message : "Token mint failed" },
         { status: 500 }
       );
     }
