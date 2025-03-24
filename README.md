@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AITokenize
+
+AITokenize is a decentralized marketplace for AI models with dynamic token-based pricing and seamless monetization on Aptos.
+
+## Overview
+
+AITokenize enables AI model creators to monetize their models through fungible asset tokens on the Aptos blockchain. Each model gets its own token, which users need to purchase and spend to make API calls to the model.
+
+### Key Features
+
+- 🪙 **Token-Based Access**: Each model has its own fungible asset token
+- 📈 **Dynamic Pricing**: Token prices automatically adjust based on supply and demand
+- 🔄 **Seamless Integration**: Simple authentication checks for token ownership
+- 📊 **On-Chain Analytics**: Transparent usage tracking and metrics
+- 👛 **Petra Wallet Integration**: Easy token purchases through Aptos's Petra wallet
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 16+
+- Aptos CLI
+- Petra Wallet Browser Extension
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/fujia09/aptos-hackathon.git
+cd aptos-hackathon
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Start the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+### For Model Creators
 
-To learn more about Next.js, take a look at the following resources:
+1. Create an account and connect your Petra wallet
+2. Click "Add New Model" in the dashboard
+3. Fill in model details and create your token
+4. Integrate token checking in your API:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```typescript
+import { checkTokenBalance } from '@aitokenize/sdk';
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+async function handleModelRequest(userAddress: string, modelId: string) {
+  const hasToken = await checkTokenBalance(userAddress, modelId);
+  if (!hasToken) {
+    throw new Error('Insufficient tokens');
+  }
+  // Process model request
+}
+```
 
-## Deploy on Vercel
+### For Users
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Browse available models
+2. Connect Petra wallet
+3. Purchase tokens for your chosen model
+4. Make API calls using your tokens
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture
+
+### Smart Contracts
+
+- `launchpad.move`: Handles token creation and management
+- Token minting/burning with dynamic price impact
+- Automatic price adjustments based on supply
+
+### Backend
+
+- Next.js API routes for token operations
+- Supabase for model metadata storage
+- GraphQL integration for real-time supply tracking
+
+### Frontend
+
+- React/Next.js with TypeScript
+- shadcn/ui components
+- TailwindCSS for styling
+- Petra wallet integration
+
+## Development
+
+### Local Setup
+
+1. Install Aptos CLI and set up local network
+2. Deploy contracts:
+```bash
+aptos move publish
+```
+
+3. Run tests:
+```bash
+npm test
+```
+
+### Environment Variables
+
+- `NEXT_PUBLIC_INTERNAL_API_SECRET`: API secret for internal routes
+- `SUPABASE_URL`: Your Supabase project URL
+- `SUPABASE_ANON_KEY`: Supabase anonymous key
+- `APTOS_NODE_URL`: Aptos node URL (mainnet)
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Aptos Labs for the Move language and tools
+- MoveAI for inspiration and support
+- The Aptos community for feedback and testing
