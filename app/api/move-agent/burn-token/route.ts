@@ -51,23 +51,6 @@ async function burnToken(
   }
 }
 
-async function  updateTokenPrice(modelID: string, newPrice: number): Promise<void> {
-  console.log(`Attempting to update price for model ${modelID} to ${newPrice}`);
-  
-  const { data, error } = await supabase
-    .from("models")
-    .update({ apt_per_token: newPrice })
-    .eq("id", modelID)
-    .select();
-
-  if (error) {
-    console.error("Error updating token price:", error);
-    throw new Error("Failed to update token price");
-  }
-
-  console.log("Price update result:", data);
-}
-
 async function getTotalSupply(
   agent: AgentRuntime,
   tokenAddress: string
@@ -204,10 +187,18 @@ export async function POST(request: Request) {
     // Calculate price impact based on supply BEFORE burning
     // For example, burning 100 tokens when supply is 1000 = 10% price increase
     const priceImpact = (burnAmount / totalSupply) * 100;
-    const newPrice = currentPrice * (1 + priceImpact / 100);
+    const newPrice = Math.abs(currentPrice * (1 + priceImpact / 100));
 
     // Update price in Supabase
-    await updateTokenPrice(modelID, newPrice);
+    const { data, error: insertError } = await supabase
+    .from("models")
+    .update({ apt_per_token: newPrice })
+    .eq("id", modelID)
+
+    if (insertError) {
+      console.error("Error updating token price:", insertError);
+      throw new Error("Failed to update token price");
+    }
 
     console.log("Token burn result:", { 
       burnHash,

@@ -879,7 +879,7 @@ export default function Dashboard() {
                     ))}
                     <Button
                       variant="outline"
-                      className="h-[358.5px] border-dashed flex flex-col gap-2 items-center justify-center"
+                      className="h-[415px] border-dashed flex flex-col gap-2 items-center justify-center"
                       onClick={() => setOpen(true)}
                     >
                       <Plus className="h-8 w-8 text-muted-foreground" />

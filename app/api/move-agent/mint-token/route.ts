@@ -25,7 +25,7 @@ import {
       const transaction = await agent.aptos.transaction.build.simple({
         sender: agent.account.getAddress(),
         options: {
-            maxGasAmount: 90000,       // Try 60,000
+            maxGasAmount: 120000,       // Try 60,000
             gasUnitPrice: 100,         // Optional, tweak if network is congested
           },
         data: {
@@ -217,7 +217,7 @@ import {
         // Calculate price impact based on supply BEFORE minting
         // For example, minting 100 tokens when supply is 1000 = 10% price decrease
         priceImpact = (mintAmount / (totalSupply - mintAmount)) * 100;
-        newPrice = currentPrice * (1 - priceImpact / 100);
+        newPrice = Math.abs(currentPrice * (1 + priceImpact / 100));
 
         // Update price in Supabase
         await updateTokenPrice(modelID, newPrice);
