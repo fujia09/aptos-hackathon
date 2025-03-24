@@ -44,7 +44,6 @@ import {
   LogOut,
   Copy,
 } from "lucide-react";
-import { WalletConnect } from "@/components/wallet-connect";
 import { TokenStats } from "@/components/token-stats";
 import { useRouter } from "next/navigation";
 import {
@@ -330,7 +329,6 @@ export default function Dashboard() {
             <span>AITokenize</span>
           </div>
           <div className="flex items-center gap-4">
-            <WalletConnect />
             <Button variant="ghost" size="icon">
               <Settings className="h-5 w-5" />
               <span className="sr-only">Settings</span>
