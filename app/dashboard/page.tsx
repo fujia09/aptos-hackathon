@@ -69,6 +69,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import Link from "next/link";
 
 type CreateFormValues = {
   modelName: string;
@@ -424,6 +425,11 @@ export default function Dashboard() {
             <span>AITokenize</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/">
+              <Button variant="outline">
+                Home
+              </Button>
+            </Link>
             <Button variant="ghost" size="icon">
               <Settings className="h-5 w-5" />
               <span className="sr-only">Settings</span>

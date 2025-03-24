@@ -27,6 +27,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
+import Link from "next/link"
 
 type CreateFormValues = {
   modelName: string
@@ -215,7 +216,12 @@ export default function Browse() {
             <span>AITokenize</span>
             </div>
             <div className="flex items-center gap-4">
-            {isWalletConnected ? (
+              <Link href="/">
+                <Button variant="outline">
+                  Home
+                </Button>
+              </Link>
+              {isWalletConnected ? (
                 <Button variant="outline" onClick={disconnectPetra}>
                 {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)} (Disconnect)
                 </Button>
