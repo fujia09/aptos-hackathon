@@ -22,17 +22,18 @@ import {
     amount: number
   ): Promise<string> {
     try {
-      const transaction = await agent.aptos.transaction.build.simple({
-        sender: agent.account.getAddress(),
-        options: {
-            maxGasAmount: 110000,       // Try 60,000
-            gasUnitPrice: 100,         // Optional, tweak if network is congested
-          },
-        data: {
-          function: "0x67c8564aee3799e9ac669553fdef3a3828d4626f24786b6a5642152fa09469dd::launchpad::mint_to_address",
-          functionArguments: [to.toString(), tokenAddress, amount],
-        },
-      });
+        const transaction = await aptos.transaction.build.simple({
+            sender: agent.account.getAddress(),
+            options: {
+              maxGasAmount: 90000,  
+              gasUnitPrice: 100       
+            },
+            data: {
+              function: "0x67c8564aee3799e9ac669553fdef3a3828d4626f24786b6a5642152fa09469dd::launchpad::mint_to_address",
+              functionArguments: [to.toString(), tokenAddress, amount],
+            },
+          });
+          
 
   
       const committedTransactionHash = await agent.account.sendTransaction(transaction);
