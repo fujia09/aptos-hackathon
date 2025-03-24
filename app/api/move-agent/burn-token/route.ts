@@ -51,7 +51,7 @@ async function burnToken(
   }
 }
 
-async function updateTokenPrice(modelID: string, newPrice: number): Promise<void> {
+async function  updateTokenPrice(modelID: string, newPrice: number): Promise<void> {
   console.log(`Attempting to update price for model ${modelID} to ${newPrice}`);
   
   const { data, error } = await supabase
